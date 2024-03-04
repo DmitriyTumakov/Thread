@@ -1,24 +1,24 @@
 package ru.netology;
 
-import javax.swing.plaf.TableHeaderUI;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
-        List<Thread> threads = new ArrayList<>();
-        int i = 0;
+        ExecutorService threadPool = Executors.newFixedThreadPool(4);
+        List<Future<Integer>> threads = new ArrayList<>();
 
         long startTs = System.currentTimeMillis(); // start time
         for (String text : texts) {
-            threads.add(new Thread(new Runnable() {
+            Callable<Integer> callable = new Callable<Integer>() {
                 @Override
-                public void run() {
+                public Integer call() throws Exception {
                     int maxSize = 0;
                     for (int i = 0; i < text.length(); i++) {
                         for (int j = 0; j < text.length(); j++) {
@@ -38,16 +38,21 @@ public class Main {
                         }
                     }
                     System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                    return maxSize;
                 }
-            }));
-            threads.get(i).start();
-            i++;
+            };
+            threads.add(threadPool.submit(callable));
         }
         long endTs = System.currentTimeMillis(); // end time
 
-        for (Thread thread : threads) {
-            thread.join();
+        int maxSize = 0;
+        for (Future thread : threads) {
+            if ((Integer) thread.get() > maxSize) {
+                maxSize = (Integer) thread.get();
+            }
         }
+        System.out.println("Максимальный интервал значений: " + maxSize);
+        threadPool.shutdown();
 
         System.out.println("Time: " + (endTs - startTs) + "ms");
     }
